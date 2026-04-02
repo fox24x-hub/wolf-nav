@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Степной Волк 2026 — Навигатор</title>
+  //fonts.googleapis.com">
+  //fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+  //unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+      --border: #30363d; --text: #f0f6fc; --muted: #8b949e;
+      --primary: #3fb950; --accent: #f0883e; --danger: #f85149;
+      --warn: #d29922; --blue: #58a6ff; --purple: #bc8cff;
+      --d1: #3b82f6; --d2: #10b981; --d3: #ef4444;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+    /* ===== LAYOUT ===== */
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ===== TOP HUD ===== */
+    .hud-top {
+      position: relative; z-index: 500;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .hud-logo { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 600; white-space: nowrap; }
+    .hud-logo span { color: var(--accent); }
+    .hud-spacer { flex: 1; }
+    .hud-speed {
+      display: flex; flex-direction: column; align-items: center;
+      background: var(--surface2); border-radius: 10px; padding: 0.3rem 0.7rem; min-width: 60px;
+    }
+    .hud-speed .val { font-size: 1.4rem; font-weight: 700; color: var(--primary); line-height: 1; }
+    .hud-speed .unit { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; }
+    .btn-drive {
+      background: var(--primary); color: #000; border: none; border-radius: 10px;
+      padding: 0.5rem 1rem; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-drive.active { background: var(--danger); color: #fff; }
+    .btn-drive:hover { opacity: 0.85; }
+
+    /* ===== MAP ===== */
+    .map-wrap { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; }
+
+    /* ===== NEXT POINT CARD ===== */
+    .next-card {
+      position: absolute; top: 1rem; left: 50%; transform: translateX(-50%);
+      z-index: 600; background: rgba(22,27,34,0.96); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1rem 1.25rem; min-width: 300px; max-width: 90vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transition: all 0.3s;
+    }
+    .next-card .label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.2rem; }
+    .next-card .title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .next-card .meta { display: flex; gap: 1rem; }
+    .next-card .meta-item { display: flex; flex-direction: column; }
+    .next-card .meta-item .mv { font-size: 1rem; font-weight: 700; color: var(--blue); }
+    .next-card .meta-item .mk { font-size: 0.65rem; color: var(--muted); }
+    .next-card .desc { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
+
+    /* ===== BOTTOM CONTROLS ===== */
+    .bottom-bar {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 600;
+      background: linear-gradient(transparent, rgba(13,17,23,0.98) 30%);
+      padding: 1.5rem 1rem 1rem;
+      display: flex; flex-direction: column; gap: 0.75rem;
+    }
+    .waypoints-scroll {
+      display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem;
+      scrollbar-width: none;
+    }
+    .waypoints-scroll::-webkit-scrollbar { display: none; }
+    .wp-chip {
+      flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 100px; padding: 0.4rem 0.75rem; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .wp-chip:hover { border-color: var(--blue); }
+    .wp-chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .wp-chip.passed { opacity: 0.4; }
+    .wp-chip.current { border-color: var(--primary); color: var(--primary); }
+    .wp-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+    .nav-controls { display: flex; gap: 0.75rem; align-items: center; }
+    .btn-nav {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      border-radius: 12px; padding: 0.75rem 1.25rem; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; flex: 1; text-align: center;
+    }
+    .btn-nav:hover { background: var(--surface); }
+    .btn-nav:disabled { opacity: 0.3; cursor: default; }
+    .btn-nav.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .btn-nav.primary:hover { background: #4f9cff; }
+
+    .btn-gps {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 0.75rem; cursor: pointer; transition: all 0.2s;
+      font-size: 1.1rem; line-height: 1;
+    }
+    .btn-gps.active { background: var(--primary); border-color: var(--primary); }
+
+    /* ===== GPS STATUS BAR ===== */
+    .gps-bar {
+      position: absolute; top: 0.75rem; right: 0.75rem; z-index: 600;
+      background: rgba(22,27,34,0.9); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.35rem 0.65rem;
+      font-size: 0.7rem; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .gps-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .gps-dot.ok { background: var(--primary); animation: pulse 2s infinite; }
+    .gps-dot.searching { background: var(--warn); animation: pulse 0.8s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ===== VOICE TOAST ===== */
+    .voice-toast {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 700; background: rgba(22,27,34,0.95); border: 1px solid var(--primary);
+      border-radius: var(--radius); padding: 1rem 1.5rem; font-size: 1rem; font-weight: 600;
+      text-align: center; color: var(--primary); pointer-events: none;
+      opacity: 0; transition: opacity 0.3s; max-width: 80vw;
+    }
+    .voice-toast.show { opacity: 1; }
+
+    /* ===== DAY BADGE ===== */
+    .day-badge {
+      font-size: 0.6rem; padding: 0.1rem 0.45rem; border-radius: 100px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    /* ===== ARRIVAL BANNER ===== */
+    .arrival-banner {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 800; background: var(--surface); border: 2px solid var(--primary);
+      border-radius: var(--radius); padding: 2rem; text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      display: none;
+    }
+    .arrival-banner h2 { font-size: 1.5rem; color: var(--primary); margin-bottom: 0.5rem; }
+    .arrival-banner p { color: var(--muted); font-size: 0.9rem; }
+    .arrival-banner .btn-close { margin-top: 1rem; background: var(--primary); color: #000; border: none; border-radius: 10px; padding: 0.6rem 1.5rem; font-weight: 700; cursor: pointer; }
+
+    /* ===== PROGRESS BAR ===== */
+    .progress-bar-wrap { height: 3px; background: var(--surface2); }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--d1), var(--d2), var(--d3)); transition: width 0.5s; }
+
+    /* ===== LEAFLET OVERRIDES ===== */
+    .leaflet-popup-content-wrapper { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; }
+    .leaflet-popup-tip { background: var(--surface); }
+    .leaflet-popup-content { margin: 12px 16px; font-family: 'Inter', sans-serif; font-size: 0.85rem; }
+    .leaflet-popup-content b { color: var(--blue); }
+
+    /* ===== PULSE MARKER ===== */
+    .pulse-ring {
+      border-radius: 50%; background: rgba(63,185,80,0.25);
+      width: 40px; height: 40px; position: absolute;
+      top: -15px; left: -15px;
+      animation: ring 2s ease-out infinite;
+    }
+    @keyframes ring { 0%{transform:scale(0.5);opacity:1} 100%{transform:scale(2);opacity:0} }
+
+    /* Responsive mobile */
+    @media (max-width: 640px) {
+      .next-card { min-width: 85vw; }
+      .hud-logo { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <!-- TOP HUD -->
+  <div class="hud-top">
+    <div class="hud-logo">Степной <span>Волк</span> 2026</div>
+    <div class="hud-spacer"></div>
+    <div class="hud-speed">
+      <div class="val" id="speedVal">—</div>
+      <div class="unit">км/ч</div>
+    </div>
+    <button class="btn-drive" id="btnDrive" onclick="toggleDriveMode()">▶ Старт</button>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progressBar" style="width:0%"></div>
+  </div>
+
+  <!-- MAP -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <!-- NEXT POINT CARD -->
+    <div class="next-card" id="nextCard">
+      <div class="label">Следующая точка</div>
+      <div class="title" id="nextTitle">Выберите точку или нажмите Старт</div>
+      <div class="meta" id="nextMeta"></div>
+      <div class="desc" id="nextDesc"></div>
+    </div>
+
+    <!-- GPS STATUS -->
+    <div class="gps-bar" id="gpsBar">
+      <div class="gps-dot" id="gpsDot"></div>
+      <span id="gpsText">GPS выкл</span>
+    </div>
+
+    <!-- VOICE TOAST -->
+    <div class="voice-toast" id="voiceToast"></div>
+
+    <!-- ARRIVAL BANNER -->
+    <div class="arrival-banner" id="arrivalBanner">
+      <div style="font-size:2.5rem">🏁</div>
+      <h2 id="arrivalTitle">Прибыли!</h2>
+      
