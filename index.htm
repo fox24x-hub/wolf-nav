@@ -1,23 +1,39 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="light">
+<html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Степной Волк 2026 — Навигатор</title>
-  //fonts.googleapis.com">
-  //fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
-  //unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     :root {
-      --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
-      --border: #30363d; --text: #f0f6fc; --muted: #8b949e;
-      --primary: #3fb950; --accent: #f0883e; --danger: #f85149;
-      --warn: #d29922; --blue: #58a6ff; --purple: #bc8cff;
-      --d1: #3b82f6; --d2: #10b981; --d3: #ef4444;
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #f0f6fc;
+      --muted: #8b949e;
+      --primary: #3fb950;
+      --accent: #f0883e;
+      --danger: #f85149;
+      --warn: #d29922;
+      --blue: #58a6ff;
+      --purple: #bc8cff;
+      --d1: #3b82f6;
+      --d2: #10b981;
+      --d3: #ef4444;
       --radius: 14px;
+      /* alias для stop-card */
+      --color-surface: #161b22;
+      --color-surface-2: #21262d;
+      --color-border: #30363d;
+      --color-text-muted: #8b949e;
+      --color-primary: #3fb950;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
@@ -32,6 +48,7 @@
       border-bottom: 1px solid var(--border);
       padding: 0.75rem 1rem;
       display: flex; align-items: center; gap: 0.75rem;
+      flex-shrink: 0;
     }
     .hud-logo { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 600; white-space: nowrap; }
     .hud-logo span { color: var(--accent); }
@@ -49,7 +66,28 @@
     .btn-drive.active { background: var(--danger); color: #fff; }
     .btn-drive:hover { opacity: 0.85; }
 
-    /* ===== MAP ===== */
+    /* ===== PROGRESS BAR ===== */
+    .progress-bar-wrap { height: 3px; background: var(--surface2); flex-shrink: 0; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--d1), var(--d2), var(--d3)); transition: width 0.5s; }
+
+    /* ===== TAB BAR ===== */
+    .tab-bar {
+      display: flex; background: var(--surface); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; z-index: 400;
+    }
+    .tab-btn {
+      flex: 1; padding: 0.6rem; text-align: center; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; border: none; background: transparent; color: var(--muted);
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* ===== VIEWS ===== */
+    .view { display: none; flex: 1; overflow: hidden; position: relative; }
+    .view.active { display: flex; flex-direction: column; }
+
+    /* ===== MAP VIEW ===== */
+    #view-map { position: relative; }
     .map-wrap { flex: 1; position: relative; }
     #map { width: 100%; height: 100%; }
 
@@ -103,7 +141,6 @@
     .btn-nav:disabled { opacity: 0.3; cursor: default; }
     .btn-nav.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
     .btn-nav.primary:hover { background: #4f9cff; }
-
     .btn-gps {
       background: var(--surface2); border: 1px solid var(--border);
       border-radius: 12px; padding: 0.75rem; cursor: pointer; transition: all 0.2s;
@@ -133,33 +170,16 @@
     }
     .voice-toast.show { opacity: 1; }
 
-    /* ===== DAY BADGE ===== */
-    .day-badge {
-      font-size: 0.6rem; padding: 0.1rem 0.45rem; border-radius: 100px;
-      font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
-    }
-
     /* ===== ARRIVAL BANNER ===== */
     .arrival-banner {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
       z-index: 800; background: var(--surface); border: 2px solid var(--primary);
       border-radius: var(--radius); padding: 2rem; text-align: center;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
-      display: none;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7); display: none;
     }
     .arrival-banner h2 { font-size: 1.5rem; color: var(--primary); margin-bottom: 0.5rem; }
     .arrival-banner p { color: var(--muted); font-size: 0.9rem; }
     .arrival-banner .btn-close { margin-top: 1rem; background: var(--primary); color: #000; border: none; border-radius: 10px; padding: 0.6rem 1.5rem; font-weight: 700; cursor: pointer; }
-
-    /* ===== PROGRESS BAR ===== */
-    .progress-bar-wrap { height: 3px; background: var(--surface2); }
-    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--d1), var(--d2), var(--d3)); transition: width 0.5s; }
-
-    /* ===== LEAFLET OVERRIDES ===== */
-    .leaflet-popup-content-wrapper { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; }
-    .leaflet-popup-tip { background: var(--surface); }
-    .leaflet-popup-content { margin: 12px 16px; font-family: 'Inter', sans-serif; font-size: 0.85rem; }
-    .leaflet-popup-content b { color: var(--blue); }
 
     /* ===== PULSE MARKER ===== */
     .pulse-ring {
@@ -170,8 +190,90 @@
     }
     @keyframes ring { 0%{transform:scale(0.5);opacity:1} 100%{transform:scale(2);opacity:0} }
 
-    /* Responsive mobile */
+    /* ===== LEAFLET OVERRIDES ===== */
+    .leaflet-popup-content-wrapper { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; }
+    .leaflet-popup-tip { background: var(--surface); }
+    .leaflet-popup-content { margin: 12px 16px; font-family: 'Inter', sans-serif; font-size: 0.85rem; }
+    .leaflet-popup-content b { color: var(--blue); }
+
+    /* ===== STOPS VIEW ===== */
+    #view-stops { overflow-y: auto; }
+    .stops-view-inner { padding: 1rem; max-width: 680px; margin: 0 auto; }
+
+    .stops-section { display: grid; gap: 18px; }
+    .section-head { margin-bottom: 4px; }
+    .section-head h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+    .eyebrow { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+    .section-head p { color: var(--color-text-muted); font-size: 0.85rem; margin-top: 6px; }
+
+    .stops-list { display: grid; gap: 16px; }
+    .stop-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .stop-card__top {
+      display: flex; justify-content: space-between; align-items: start; gap: 12px;
+    }
+    .stop-card__day {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--color-text-muted); margin-bottom: 4px;
+    }
+    .stop-card__title { margin: 0; font-size: 1.1rem; font-weight: 700; }
+    .stop-card__badge {
+      padding: 6px 12px; border-radius: 999px; font-size: 11px;
+      font-weight: 700; white-space: nowrap; flex-shrink: 0;
+    }
+    .stop-card__badge--high { background: rgba(63,185,80,.15); color: var(--primary); }
+    .stop-card__badge--medium { background: rgba(240,136,62,.15); color: var(--accent); }
+    .stop-card__route-role { color: var(--color-primary); font-weight: 600; font-size: 0.85rem; }
+    .stop-card__brief { color: var(--color-text-muted); margin: 0; font-size: 0.85rem; line-height: 1.5; }
+    .stop-card__details {
+      border-top: 1px solid var(--color-border); padding-top: 12px;
+    }
+    .stop-card__details summary {
+      cursor: pointer; font-weight: 700; font-size: 0.85rem; margin-bottom: 10px;
+      color: var(--blue); list-style: none; display: flex; align-items: center; gap: 6px;
+    }
+    .stop-card__details summary::before { content: '▶'; font-size: 0.6rem; transition: transform 0.2s; }
+    .stop-card__details[open] summary::before { transform: rotate(90deg); }
+    .stop-card__details p { color: var(--color-text-muted); margin: 0; font-size: 0.85rem; line-height: 1.6; }
+    .stop-card__grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .stop-card__grid h4 { margin: 0 0 8px; font-size: 0.8rem; color: var(--text); }
+    .stop-card__grid ul {
+      margin: 0; padding-left: 16px; color: var(--color-text-muted); font-size: 0.8rem; line-height: 1.7;
+    }
+    .stop-card__meta {
+      display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.75rem;
+      color: var(--color-text-muted); padding-top: 10px; border-top: 1px solid var(--color-border);
+    }
+    .stop-card__meta span {
+      background: var(--surface2); border-radius: 8px; padding: 4px 10px;
+    }
+    .stop-card__audio {
+      padding: 12px 14px; border-radius: 14px;
+      background: var(--color-surface-2); border: 1px solid var(--color-border);
+    }
+    .stop-card__audio strong { display: block; margin-bottom: 4px; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .stop-card__audio p { margin: 0; color: var(--text); font-size: 0.88rem; line-height: 1.5; font-style: italic; }
+
+    .stop-card__map-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--blue); color: #fff; border: none; border-radius: 10px;
+      padding: 0.5rem 1rem; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; text-decoration: none;
+    }
+    .stop-card__map-btn:hover { background: #4f9cff; }
+
     @media (max-width: 640px) {
+      .stop-card__grid { grid-template-columns: 1fr; }
+      .stop-card__top { flex-direction: column; }
       .next-card { min-width: 85vw; }
       .hud-logo { font-size: 0.95rem; }
     }
@@ -179,11 +281,12 @@
 </head>
 <body>
 <div class="app">
+
   <!-- TOP HUD -->
   <div class="hud-top">
     <div class="hud-logo">Степной <span>Волк</span> 2026</div>
     <div class="hud-spacer"></div>
-    <div class="hud-speed">
+    <div class="hud-speed" id="speedBlock" style="display:none">
       <div class="val" id="speedVal">—</div>
       <div class="unit">км/ч</div>
     </div>
@@ -195,29 +298,475 @@
     <div class="progress-bar" id="progressBar" style="width:0%"></div>
   </div>
 
-  <!-- MAP -->
-  <div class="map-wrap">
-    <div id="map"></div>
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('map')">🗺 Карта</button>
+    <button class="tab-btn" onclick="switchTab('stops')">📍 Остановки</button>
+  </div>
 
-    <!-- NEXT POINT CARD -->
-    <div class="next-card" id="nextCard">
-      <div class="label">Следующая точка</div>
-      <div class="title" id="nextTitle">Выберите точку или нажмите Старт</div>
-      <div class="meta" id="nextMeta"></div>
-      <div class="desc" id="nextDesc"></div>
+  <!-- MAP VIEW -->
+  <div class="view active" id="view-map">
+    <div class="map-wrap">
+      <div id="map"></div>
+
+      <div class="next-card" id="nextCard">
+        <div class="label">Следующая точка</div>
+        <div class="title" id="nextTitle">Выберите точку или нажмите Старт</div>
+        <div class="meta" id="nextMeta"></div>
+        <div class="desc" id="nextDesc"></div>
+      </div>
+
+      <div class="gps-bar" id="gpsBar">
+        <div class="gps-dot" id="gpsDot"></div>
+        <span id="gpsText">GPS выкл</span>
+      </div>
+
+      <div class="voice-toast" id="voiceToast"></div>
+
+      <div class="arrival-banner" id="arrivalBanner">
+        <div style="font-size:2.5rem">🏁</div>
+        <h2 id="arrivalTitle">Прибыли!</h2>
+        <p id="arrivalDesc"></p>
+        <button class="btn-close" onclick="closeArrival()">Продолжить</button>
+      </div>
     </div>
 
-    <!-- GPS STATUS -->
-    <div class="gps-bar" id="gpsBar">
-      <div class="gps-dot" id="gpsDot"></div>
-      <span id="gpsText">GPS выкл</span>
+    <div class="bottom-bar">
+      <div class="waypoints-scroll" id="wpScroll"></div>
+      <div class="nav-controls">
+        <button class="btn-nav" id="btnPrev" onclick="prevStop()" disabled>← Назад</button>
+        <button class="btn-gps" id="btnGps" onclick="toggleGps()">📍</button>
+        <button class="btn-nav primary" id="btnNext" onclick="nextStop()">Далее →</button>
+      </div>
     </div>
+  </div>
 
-    <!-- VOICE TOAST -->
-    <div class="voice-toast" id="voiceToast"></div>
+  <!-- STOPS VIEW -->
+  <div class="view" id="view-stops">
+    <div class="stops-view-inner">
+      <section class="stops-section">
+        <div class="section-head">
+          <div class="eyebrow">Дорожный гид</div>
+          <h2>Остановки по пути</h2>
+          <p>Короткие истории и подсказки для остановок 15–16 мая перед стартом «Степного волка».</p>
+        </div>
+        <div id="stops-list" class="stops-list"></div>
+      </section>
+    </div>
+  </div>
 
-    <!-- ARRIVAL BANNER -->
-    <div class="arrival-banner" id="arrivalBanner">
-      <div style="font-size:2.5rem">🏁</div>
-      <h2 id="arrivalTitle">Прибыли!</h2>
-      
+</div>
+
+<script>
+/* ===== ДАННЫЕ ===== */
+const tripStops = [
+  {
+    id: "yekaterinburg",
+    day: "15.05",
+    title: "Екатеринбург",
+    shortTitle: "Старт маршрута",
+    type: "city",
+    priority: "start",
+    coords: [56.838, 60.605],
+    duration: "Старт",
+    routeRole: "Отсюда начинается путь",
+    brief: "Выезд. Степной Волк ждёт.",
+    guideText: "Всё начинается здесь. Заправить, проверить навигатор, взять кофе и ехать.",
+    lookFor: ["Хорошее начало дня", "Запас кофе", "Ничего не забыть"],
+    practical: ["Выезд пораньше", "Заправка перед трассой"],
+    audioNote: "Ну, поехали.",
+    hideCard: true
+  },
+  {
+    id: "ai-river",
+    day: "15.05",
+    title: "Река Ай",
+    shortTitle: "Видовая точка на реке Ай",
+    type: "nature",
+    priority: "medium",
+    coords: [55.2, 58.7],
+    duration: "15–25 минут",
+    routeRole: "Первая красивая точка на маршруте",
+    brief: "Ай — одна из самых красивых рек Южного Урала: скалы, изгибы, вода и сразу ощущение, что поездка уже началась по-настоящему, а не просто идёт перегон по трассе.",
+    guideText: "Мне нравится, что Ай — это такой быстрый вход в путешествие. Ты вроде ещё недалеко уехал от обычной дороги, а уже появляется красивый рельеф, вода, скалы и настроение, что мы едем не просто на старт, а в нормальное дорожное приключение.",
+    lookFor: ["Изгиб реки и форму долины", "Скалы и рельеф по берегам", "Момент, где хочется просто постоять и посмотреть"],
+    practical: ["Короткая остановка без сильного зависания", "Хорошо размяться и сделать первые фото", "Отличная точка, чтобы почувствовать ритм поездки"],
+    audioNote: "Вот Ай — и с этого места дорога уже ощущается как путешествие, а не просто длинный переезд."
+  },
+  {
+    id: "porogi-hpp",
+    day: "15.05",
+    title: "ГЭС Пороги",
+    shortTitle: "Историческая ГЭС Пороги",
+    type: "history",
+    priority: "high",
+    coords: [55.112, 58.705],
+    duration: "30–45 минут",
+    routeRole: "Самая сильная остановка первого дня",
+    brief: "Пороги — это очень сильное место: старая уральская ГЭС начала XX века, плотина из камня, вода, индустриальная история и очень мощная визуальная сцена.",
+    guideText: "Вот это место я сам особенно жду. Оно цепляет тем, что здесь всё вместе: старая инженерия, река, камень, масштаб и ощущение, что ты попал в какое-то почти киношное пространство старого Урала. Не просто «объект», а место с характером.",
+    lookFor: ["Каменную плотину", "Общий масштаб сооружения", "Как вода и старая инженерия собираются в один пейзаж"],
+    practical: ["Сюда точно стоит заложить время", "Не делать формат «вышли на две минуты»", "Одна из главных остановок всей поездки"],
+    audioNote: "Пороги — это, похоже, главное место дороги: не про галочку, а про реальное впечатление."
+  },
+  {
+    id: "verkhneuralsk",
+    day: "15.05",
+    title: "Верхнеуральск",
+    shortTitle: "Тихий старый город",
+    type: "city",
+    priority: "medium",
+    coords: [53.876, 59.216],
+    duration: "20–40 минут",
+    routeRole: "Историческая пауза среди большого перегона",
+    brief: "Верхнеуральск — старый спокойный город на юге Урала, где интерес не в одном вау-объекте, а в общей атмосфере старой дороги, купеческого прошлого и тихого центра.",
+    guideText: "Мне кажется, Верхнеуральск — это хорошая остановка именно по настроению. Не ради какой-то одной достопримечательности, а чтобы чуть выдохнуть, пройтись и почувствовать старый южноуральский город, который спокойно живёт в своём темпе.",
+    lookFor: ["Старый центр и спокойную застройку", "Обычный городской ритм без суеты", "Атмосферу дороги через старые города"],
+    practical: ["Хорошее место для кофе и короткой прогулки", "Работает как пауза между большими участками пути", "Не требует много энергии"],
+    audioNote: "Верхнеуральск — это такая тихая историческая передышка посреди большой дороги."
+  },
+  {
+    id: "steppe-panorama",
+    day: "15.05",
+    title: "Степная панорама",
+    shortTitle: "Панорама перед Оренбургом",
+    type: "nature",
+    priority: "medium",
+    coords: [51.95, 55.4],
+    duration: "10–15 минут",
+    routeRole: "Момент перехода от Урала к степи",
+    brief: "Эта точка важна не как объект, а как ощущение: перед Оренбургом пространство раскрывается, горизонт становится шире, и видно, что мы уже въезжаем в степную часть маршрута.",
+    guideText: "Вот здесь мне нравится сам переход. До этого была более уральская логика дороги, а тут вдруг всё раскрывается: больше неба, больше ветра, больше пространства. И поездка уже ощущается совсем по-другому.",
+    lookFor: ["Горизонт и ширину пространства", "Свет и воздух", "Ощущение открытой степи"],
+    practical: ["Короткая остановка на фото", "Хорошо перед финальным доездом до Оренбурга", "Лучше использовать как атмосферную точку, а не долгий привал"],
+    audioNote: "Вот здесь начинается степь — и сразу меняется всё ощущение дороги."
+  },
+  {
+    id: "orenburg",
+    day: "15.05",
+    title: "Оренбург",
+    shortTitle: "Ночёвка перед стартом",
+    type: "city",
+    priority: "high",
+    coords: [51.768, 55.097],
+    duration: "Ночёвка",
+    routeRole: "База на 15–17 мая",
+    brief: "Финиш первого дня. Заселиться, поесть нормально, лечь пораньше.",
+    guideText: "Оренбург — это не туристическая точка в этой поездке, а база. Главное — хорошо поесть, не перегрузиться вечером и нормально выспаться перед стартом.",
+    lookFor: ["Набережную реки Урал", "Пешеходную улицу Советскую", "Вкусное место для ужина"],
+    practical: ["Ужин без алкоголя и излишеств", "Заранее разложить стартовый комплект", "Лечь не позже 22:00"],
+    audioNote: "Оренбург — пришли домой на эту ночь. Отдыхать, а не гулять."
+  },
+  {
+    id: "sol-iletsk",
+    day: "16.05",
+    title: "Соль-Илецк",
+    shortTitle: "Поездка в Соль-Илецк",
+    type: "city",
+    priority: "high",
+    coords: [51.163, 54.99],
+    duration: "Полдня",
+    routeRole: "Отдельный сюжет второго дня до старта",
+    brief: "Соль-Илецк — это уже отдельная мини-поездка внутри всей истории: солёные озёра, южное настроение, курортный вайб и ощущение, что ты сильно южнее, чем ожидал оказаться на Урале.",
+    guideText: "Соль-Илецк мне интересен не как «надо посмотреть галочку», а как странный и прикольный контраст. Вроде обычный степной город, а рядом — солёные озёра и почти курортная атмосфера. Хочется просто спокойно гулять и впитывать это место без спешки.",
+    lookFor: ["Соляные озёра", "Южное курортное настроение", "Контраст степного города и необычной воды"],
+    practical: ["Лучше делать прогулочный день без перегруза", "Не убиваться по шагам перед стартом", "Оставить запас сил на 17 мая"],
+    audioNote: "Соль-Илецк — это ощущение маленького южного путешествия внутри всей поездки."
+  }
+];
+
+/* ===== ЦВЕТА ТИПОВ ===== */
+const typeColors = {
+  nature: '#3fb950',
+  history: '#f0883e',
+  city: '#58a6ff',
+  start: '#8b949e'
+};
+
+/* ===== СОСТОЯНИЕ ===== */
+let currentIdx = 0;
+let driveMode = false;
+let gpsActive = false;
+let watchId = null;
+let userMarker = null;
+let map = null;
+let routeLine = null;
+const markers = [];
+
+/* ===== КАРТА ===== */
+function initMap() {
+  map = L.map('map', { zoomControl: false }).setView([54.0, 57.5], 6);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd', maxZoom: 19
+  }).addTo(map);
+
+  L.control.zoom({ position: 'topright' }).addTo(map);
+
+  // Маршрутная линия
+  const routeCoords = tripStops.map(s => s.coords);
+  routeLine = L.polyline(routeCoords, {
+    color: '#58a6ff', weight: 2.5, opacity: 0.5, dashArray: '6 6'
+  }).addTo(map);
+
+  // Маркеры
+  tripStops.forEach((stop, idx) => {
+    const color = typeColors[stop.type] || '#58a6ff';
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        background:${color}; width:14px; height:14px; border-radius:50%;
+        border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.5);
+        cursor:pointer;
+      "></div>`,
+      iconSize: [14, 14], iconAnchor: [7, 7]
+    });
+    const marker = L.marker(stop.coords, { icon })
+      .addTo(map)
+      .bindPopup(`<b>${stop.title}</b><br>${stop.routeRole}<br><small>⏱ ${stop.duration}</small>`);
+    marker.on('click', () => jumpToStop(idx));
+    markers.push(marker);
+  });
+
+  renderWaypoints();
+  jumpToStop(0);
+}
+
+/* ===== НАВИГАЦИЯ ===== */
+function jumpToStop(idx) {
+  currentIdx = idx;
+  const stop = tripStops[idx];
+
+  map.flyTo(stop.coords, idx === 0 ? 6 : 10, { duration: 1 });
+
+  document.getElementById('nextTitle').textContent = stop.title;
+  document.getElementById('nextDesc').textContent = stop.brief;
+  document.getElementById('nextMeta').innerHTML = `
+    <div class="meta-item"><span class="mv">${stop.day}</span><span class="mk">Дата</span></div>
+    <div class="meta-item"><span class="mv">${stop.duration}</span><span class="mk">Время</span></div>
+  `;
+
+  document.getElementById('btnPrev').disabled = idx === 0;
+  document.getElementById('btnNext').disabled = idx === tripStops.length - 1;
+
+  updateProgress();
+  renderWaypoints();
+  markers.forEach((m, i) => {
+    m.setOpacity(i < idx ? 0.35 : 1);
+  });
+}
+
+function nextStop() {
+  if (currentIdx < tripStops.length - 1) jumpToStop(currentIdx + 1);
+}
+function prevStop() {
+  if (currentIdx > 0) jumpToStop(currentIdx - 1);
+}
+
+function updateProgress() {
+  const pct = (currentIdx / (tripStops.length - 1)) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+function renderWaypoints() {
+  const el = document.getElementById('wpScroll');
+  el.innerHTML = tripStops.map((s, i) => {
+    let cls = 'wp-chip';
+    if (i < currentIdx) cls += ' passed';
+    if (i === currentIdx) cls += ' current';
+    if (i > currentIdx) cls += '';
+    const color = typeColors[s.type] || '#58a6ff';
+    return `<div class="${cls}" onclick="jumpToStop(${i})">
+      <div class="wp-dot" style="background:${color}"></div>
+      ${s.title}
+    </div>`;
+  }).join('');
+  // скролл к текущей точке
+  const chips = el.querySelectorAll('.wp-chip');
+  if (chips[currentIdx]) chips[currentIdx].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+}
+
+/* ===== DRIVE MODE ===== */
+function toggleDriveMode() {
+  driveMode = !driveMode;
+  const btn = document.getElementById('btnDrive');
+  const speedBlock = document.getElementById('speedBlock');
+  if (driveMode) {
+    btn.textContent = '⏹ Стоп';
+    btn.classList.add('active');
+    speedBlock.style.display = 'flex';
+    showToast('Режим движения включён');
+  } else {
+    btn.textContent = '▶ Старт';
+    btn.classList.remove('active');
+    speedBlock.style.display = 'none';
+    document.getElementById('speedVal').textContent = '—';
+  }
+}
+
+/* ===== GPS ===== */
+function toggleGps() {
+  if (gpsActive) {
+    stopGps();
+  } else {
+    startGps();
+  }
+}
+
+function startGps() {
+  if (!navigator.geolocation) {
+    showToast('GPS недоступен в этом браузере');
+    return;
+  }
+  gpsActive = true;
+  document.getElementById('btnGps').classList.add('active');
+  document.getElementById('gpsDot').className = 'gps-dot searching';
+  document.getElementById('gpsText').textContent = 'Поиск…';
+
+  watchId = navigator.geolocation.watchPosition(onGpsSuccess, onGpsError, {
+    enableHighAccuracy: true, maximumAge: 3000, timeout: 10000
+  });
+}
+
+function stopGps() {
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+  gpsActive = false;
+  document.getElementById('btnGps').classList.remove('active');
+  document.getElementById('gpsDot').className = 'gps-dot';
+  document.getElementById('gpsText').textContent = 'GPS выкл';
+  document.getElementById('speedVal').textContent = '—';
+  if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+}
+
+function onGpsSuccess(pos) {
+  const { latitude: lat, longitude: lng, speed } = pos.coords;
+  document.getElementById('gpsDot').className = 'gps-dot ok';
+  document.getElementById('gpsText').textContent = 'GPS активен';
+
+  const kmh = speed ? Math.round(speed * 3.6) : 0;
+  if (driveMode) document.getElementById('speedVal').textContent = kmh;
+
+  const pulseHtml = `<div style="position:relative;width:10px;height:10px">
+    <div class="pulse-ring"></div>
+    <div style="width:10px;height:10px;background:var(--primary);border-radius:50%;border:2px solid #fff"></div>
+  </div>`;
+  const userIcon = L.divIcon({ className: '', html: pulseHtml, iconSize: [10,10], iconAnchor: [5,5] });
+
+  if (!userMarker) {
+    userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map);
+  } else {
+    userMarker.setLatLng([lat, lng]);
+  }
+
+  if (driveMode) map.panTo([lat, lng]);
+
+  // Проверка прибытия к точке
+  const stop = tripStops[currentIdx];
+  const dist = map.distance([lat, lng], stop.coords);
+  if (dist < 300) {
+    showArrival(stop);
+  }
+}
+
+function onGpsError(err) {
+  document.getElementById('gpsDot').className = 'gps-dot';
+  document.getElementById('gpsText').textContent = 'Нет сигнала';
+}
+
+/* ===== ARRIVAL ===== */
+function showArrival(stop) {
+  document.getElementById('arrivalTitle').textContent = stop.title;
+  document.getElementById('arrivalDesc').textContent = stop.audioNote;
+  document.getElementById('arrivalBanner').style.display = 'block';
+}
+function closeArrival() {
+  document.getElementById('arrivalBanner').style.display = 'none';
+  if (currentIdx < tripStops.length - 1) nextStop();
+}
+
+/* ===== TOAST ===== */
+function showToast(msg) {
+  const t = document.getElementById('voiceToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ===== TABS ===== */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (tab === 'map' && i === 0) || (tab === 'stops' && i === 1));
+  });
+  document.getElementById('view-map').classList.toggle('active', tab === 'map');
+  document.getElementById('view-stops').classList.toggle('active', tab === 'stops');
+  if (tab === 'map' && map) setTimeout(() => map.invalidateSize(), 50);
+}
+
+/* ===== STOP CARDS ===== */
+function getPriorityLabel(priority) {
+  if (priority === 'high') return 'Главная точка';
+  if (priority === 'medium') return 'Остановка';
+  return '';
+}
+
+function renderStopCard(stop) {
+  if (stop.hideCard) return '';
+  const badge = getPriorityLabel(stop.priority);
+  const badgeHtml = badge
+    ? `<span class="stop-card__badge stop-card__badge--${stop.priority}">${badge}</span>`
+    : '';
+  return `
+    <article class="stop-card" id="card-${stop.id}">
+      <div class="stop-card__top">
+        <div>
+          <div class="stop-card__day">${stop.day}</div>
+          <h3 class="stop-card__title">${stop.title}</h3>
+        </div>
+        ${badgeHtml}
+      </div>
+      <p class="stop-card__route-role">${stop.routeRole}</p>
+      <p class="stop-card__brief">${stop.brief}</p>
+      <details class="stop-card__details">
+        <summary>Что рассказать в машине</summary>
+        <p>${stop.guideText}</p>
+      </details>
+      <div class="stop-card__grid">
+        <section>
+          <h4>На что смотреть</h4>
+          <ul>${stop.lookFor.map(i => `<li>${i}</li>`).join('')}</ul>
+        </section>
+        <section>
+          <h4>Практика</h4>
+          <ul>${stop.practical.map(i => `<li>${i}</li>`).join('')}</ul>
+        </section>
+      </div>
+      <div class="stop-card__audio">
+        <strong>Фраза для дороги</strong>
+        <p>${stop.audioNote}</p>
+      </div>
+      <div class="stop-card__meta">
+        <span>⏱ ${stop.duration}</span>
+        <span>📍 ${stop.shortTitle}</span>
+      </div>
+      <button class="stop-card__map-btn" onclick="switchTab('map'); jumpToStop(${tripStops.indexOf(stop)})">
+        🗺 Показать на карте
+      </button>
+    </article>
+  `;
+}
+
+function renderTripStops() {
+  const el = document.querySelector('#stops-list');
+  if (!el) return;
+  el.innerHTML = tripStops.map(renderStopCard).join('');
+}
+
+/* ===== INIT ===== */
+window.addEventListener('load', () => {
+  initMap();
+  renderTripStops();
+});
+</script>
+</body>
+</html>
