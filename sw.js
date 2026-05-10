@@ -1,10 +1,11 @@
-const CACHE_NAME = 'wolf-v2'; // Увеличивайте версию при обновлении
+const CACHE_NAME = 'wolf-v3';
 const STATIC_ASSETS = [
   './',
-  './index.html',
-  './manifest.json',
+  './index.htm',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css',
+  'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap'
 ];
 
@@ -18,7 +19,7 @@ self.addEventListener('install', (event) => {
       console.error('[SW] Ошибка кеширования:', err);
     })
   );
-  self.skipWaiting(); // Сразу активируем новый SW
+  self.skipWaiting();
 });
 
 // Активация: чистим старые кеши
@@ -32,19 +33,18 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  self.clients.claim(); // Берем контроль над страницами сразу
+  self.clients.claim();
 });
 
-// Fetch: стратегия "Stale-While-Revalidate" для статики, "Network First" для API
+// Fetch: кэш тайлов карты + статика + всё остальное
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  
-  // Для карты (tiles) - кешируем агрессивно
+
+  // Тайлы карты — кешируем агрессивно
   if (request.url.includes('cartocdn.com') || request.url.includes('tile')) {
     event.respondWith(
       caches.match(request).then((response) => {
         return response || fetch(request).then((fetchResponse) => {
-          // Кешируем тайлы карт для офлайн-просмотра
           const clone = fetchResponse.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
           return fetchResponse;
@@ -54,7 +54,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Для статики - сначала кеш, потом сеть (быстрая загрузка)
+  // Статика — сначала кеш, потом сеть
   if (STATIC_ASSETS.some(url => request.url.includes(url))) {
     event.respondWith(
       caches.match(request).then((response) => {
@@ -64,7 +64,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Для всего остального - сначала сеть, потом кеш (актуальность важнее)
+  // Всё остальное — сначала сеть, потом кеш
   event.respondWith(
     fetch(request).catch(() => {
       return caches.match(request);
