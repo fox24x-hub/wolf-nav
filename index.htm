@@ -367,7 +367,7 @@ const tripStops = [
     shortTitle: "Старт маршрута",
     type: "city",
     priority: "start",
-    coords: [56.838, 60.605],
+    coords: [56.8389, 60.6057],  // Площадь 1905 года
     duration: "Старт",
     routeRole: "Отсюда начинается путь",
     brief: "Выезд. Степной Волк ждёт.",
@@ -380,11 +380,11 @@ const tripStops = [
   {
     id: "ai-river",
     day: "15.05",
-    title: "Река Ай",
-    shortTitle: "Видовая точка на реке Ай",
+    title: "Большие Притёсы (р. Ай)",
+    shortTitle: "Смотровая на реке Ай",
     type: "nature",
     priority: "medium",
-    coords: [55.2, 58.7],
+    coords: [55.1490, 58.6959],  // Большие Притёсы, Саткинский р-н
     duration: "15–25 минут",
     routeRole: "Первая красивая точка на маршруте",
     brief: "Ай — одна из самых красивых рек Южного Урала: скалы, изгибы, вода и сразу ощущение, что поездка уже началась по-настоящему, а не просто идёт перегон по трассе.",
@@ -400,7 +400,7 @@ const tripStops = [
     shortTitle: "Историческая ГЭС Пороги",
     type: "history",
     priority: "high",
-    coords: [55.112, 58.705],
+    coords: [55.2819, 59.1342],  // Урочище Пороги, Саткинский р-н
     duration: "30–45 минут",
     routeRole: "Самая сильная остановка первого дня",
     brief: "Пороги — это очень сильное место: старая уральская ГЭС начала XX века, плотина из камня, вода, индустриальная история и очень мощная визуальная сцена.",
@@ -416,7 +416,7 @@ const tripStops = [
     shortTitle: "Тихий старый город",
     type: "city",
     priority: "medium",
-    coords: [53.876, 59.216],
+    coords: [53.8761, 59.2170],  // Центр Верхнеуральска, ул. Ленина
     duration: "20–40 минут",
     routeRole: "Историческая пауза среди большого перегона",
     brief: "Верхнеуральск — старый спокойный город на юге Урала, где интерес не в одном вау-объекте, а в общей атмосфере старой дороги, купеческого прошлого и тихого центра.",
@@ -432,7 +432,7 @@ const tripStops = [
     shortTitle: "Панорама перед Оренбургом",
     type: "nature",
     priority: "medium",
-    coords: [51.95, 55.4],
+    coords: [52.0614, 55.8702],  // Трасса Р-335, открытая степь перед Оренбургом
     duration: "10–15 минут",
     routeRole: "Момент перехода от Урала к степи",
     brief: "Эта точка важна не как объект, а как ощущение: перед Оренбургом пространство раскрывается, горизонт становится шире, и видно, что мы уже въезжаем в степную часть маршрута.",
@@ -445,10 +445,10 @@ const tripStops = [
     id: "orenburg",
     day: "15.05",
     title: "Оренбург",
-    shortTitle: "Ночёвка перед стартом",
+    shortTitle: "Набережная реки Урал",
     type: "city",
     priority: "high",
-    coords: [51.768, 55.097],
+    coords: [51.7683, 55.0978],  // Набережная р. Урал, пешеходный мост
     duration: "Ночёвка",
     routeRole: "База на 15–17 мая",
     brief: "Финиш первого дня. Заселиться, поесть нормально, лечь пораньше.",
@@ -461,10 +461,10 @@ const tripStops = [
     id: "sol-iletsk",
     day: "16.05",
     title: "Соль-Илецк",
-    shortTitle: "Поездка в Соль-Илецк",
+    shortTitle: "Озеро Развал",
     type: "city",
     priority: "high",
-    coords: [51.163, 54.99],
+    coords: [51.1494, 55.0012],  // Озеро Развал, вход на курорт
     duration: "Полдня",
     routeRole: "Отдельный сюжет второго дня до старта",
     brief: "Соль-Илецк — это уже отдельная мини-поездка внутри всей истории: солёные озёра, южное настроение, курортный вайб и ощущение, что ты сильно южнее, чем ожидал оказаться на Урале.",
@@ -747,11 +747,23 @@ function renderStopCard(stop) {
       </div>
       <div class="stop-card__meta">
         <span>⏱ ${stop.duration}</span>
-        <span>📍 ${stop.shortTitle}</span>
+        <span>📍 ${stop.coords[0].toFixed(4)}, ${stop.coords[1].toFixed(4)}</span>
       </div>
-      <button class="stop-card__map-btn" onclick="switchTab('map'); jumpToStop(${tripStops.indexOf(stop)})">
-        🗺 Показать на карте
-      </button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="stop-card__map-btn" onclick="switchTab('map'); jumpToStop(${tripStops.indexOf(stop)})">
+          🗺 На карте
+        </button>
+        <a class="stop-card__map-btn" style="background:var(--accent);text-decoration:none"
+           href="yandexnavi://map_search?text=${stop.coords[0]},${stop.coords[1]}"
+           onclick="if(!this.href.startsWith('yandexnavi'))return;event.preventDefault();window.location.href=this.href">
+          🧭 Яндекс.Навигатор
+        </a>
+        <a class="stop-card__map-btn" style="background:var(--surface2);border:1px solid var(--border);text-decoration:none"
+           href="https://yandex.ru/maps/?pt=${stop.coords[1]},${stop.coords[0]}&z=15&l=map"
+           target="_blank">
+          🌐 Яндекс.Карты
+        </a>
+      </div>
     </article>
   `;
 }
